@@ -1,0 +1,40 @@
+FROM python:3.11.3-alpine3.18
+LABEL maintainer="joseeusebioeng@gmail.com"
+
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+RUN apk update && apk add --no-cache \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    postgresql-dev \
+    build-base \
+    linux-headers
+
+COPY . /backend
+
+WORKDIR /backend
+
+RUN python -m venv /venv && \
+    /venv/bin/pip install --upgrade pip && \
+    /venv/bin/pip install -r /backend/requirements.txt
+
+RUN adduser --disabled-password --no-create-home duser && \
+    mkdir -p /backend/data/web/static && \
+    mkdir -p /backend/data/web/media && \
+    mkdir -p /backend/data/web/images && \
+    chown -R duser:duser /venv && \
+    chown -R duser:duser /backend/data/web/static && \
+    chown -R duser:duser /backend/data/web/media && \
+    chmod -R 755 /backend/data/web/static && \
+    chmod -R 755 /backend/data/web/media && \
+    chmod -R +x /backend/scripts
+
+ENV PATH="/backend/scripts:/venv/bin:$PATH"
+
+EXPOSE 8000
+
+USER duser
+
+CMD ["commands.sh"]

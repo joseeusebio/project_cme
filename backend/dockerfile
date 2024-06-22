@@ -28,8 +28,10 @@ RUN adduser --disabled-password --no-create-home duser && \
     chown -R duser:duser /backend/data/web/static && \
     chown -R duser:duser /backend/data/web/media && \
     chmod -R 755 /backend/data/web/static && \
-    chmod -R 755 /backend/data/web/media && \
-    chmod -R +x /backend/scripts
+    chmod -R 755 /backend/data/web/media
+
+COPY scripts/commands.sh /backend/scripts/commands.sh
+RUN chmod +x /backend/scripts/commands.sh
 
 ENV PATH="/backend/scripts:/venv/bin:$PATH"
 
@@ -37,4 +39,4 @@ EXPOSE 8000
 
 USER duser
 
-CMD ["commands.sh"]
+ENTRYPOINT ["/backend/scripts/commands.sh"]

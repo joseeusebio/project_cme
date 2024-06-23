@@ -7,6 +7,8 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ('category', 'manufacturer', 'unit')
     search_fields = ('name', 'sku', 'manufacturer')
     ordering = ('name',)
+    readonly_fields = ('sku',)
+    fields = ('name', 'description', 'category', 'manufacturer', 'unit')
 
 @admin.register(ProductTotalStock)
 class ProductTotalStockAdmin(admin.ModelAdmin):

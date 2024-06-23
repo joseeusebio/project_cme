@@ -6,7 +6,7 @@ import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
 import TextField from '@mui/material/TextField';
 import Box from '@mui/material/Box';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -54,11 +54,11 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(process.env.REACT_APP_API_URL + '/token/', credentials);
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}api/token/`, credentials);
       localStorage.setItem('access_token', response.data.access);
       localStorage.setItem('refresh_token', response.data.refresh);
       axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
-      history.push('/');  // Redirecione para o dashboard após o login
+      history.push('/');
     } catch (error) {
       setError('Login failed. Please check your credentials and try again.');
     }
@@ -78,7 +78,7 @@ const Login = () => {
             }}
           >
             <Avatar sx={{ m: 1, bgcolor: 'primary.main' }}>
-              <LockOutlinedIcon />
+              <MedicalServicesIcon />
             </Avatar>
             <Typography component="h1" variant="h4" sx={{ fontWeight: 'bold' }}>
               MedTrace

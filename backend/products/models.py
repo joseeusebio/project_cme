@@ -1,35 +1,27 @@
 from django.db import models
 
 class Product(models.Model):
-    CATEGORIES = [
-        ('surgical', 'Surgical - Instrumentos Cirúrgicos'),
-        ('imaging', 'Imaging - Equipamentos de Visualização'),
-        ('anesthesia', 'Anesthesia - Dispositivos de Anestesia'),
-        ('catheterization', 'Catheterization - Material de Cateterização e Drenagem'),
-        ('dental', 'Dental - Instrumental Odontológico'),
-        ('containers', 'Containers - Recipientes e Acessórios'),
-        ('obstetric', 'Obstetric - Instrumental para Parto'),
-        ('ppe', 'PPE - Equipamento de Proteção Individual (Personal Protective Equipment)'),
-    ]
-
-    UNITS = [
-        ('pc', 'Peça'),
-        ('set', 'Conjunto'),
-        ('unit', 'Unidade'),
-        ('pk', 'Pacote'),
-        ('box', 'Caixa'),
-    ]
-    
     name = models.CharField(max_length=255)
     description = models.TextField()
-    sku = models.CharField(max_length=50, unique=True, null=False)
-    category = models.CharField(max_length=50, choices=CATEGORIES)
+    sku = models.CharField(max_length=50, unique=True, null=False, blank=True, editable=False)
+    category = models.CharField(max_length=50)
     manufacturer = models.CharField(max_length=255)
-    unit = models.CharField(max_length=10, choices=UNITS)
+    unit = models.CharField(max_length=10)
 
     class Meta:
         verbose_name = 'Produto'
         verbose_name_plural = 'Produtos'
+
+    def save(self, *args, **kwargs):
+        if not self.sku:
+            last_product = Product.objects.all().order_by('id').last()
+            if not last_product:
+                self.sku = '000001'
+            else:
+                last_sku = last_product.sku
+                new_sku = int(last_sku) + 1
+                self.sku = str(new_sku).zfill(6)
+        super(Product, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -65,8 +57,18 @@ class ProductBatchStock(models.Model):
     needs_sterilization = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = 'Saldo Por Lote'
-        verbose_name_plural = 'Saldo Por Lote'
+        verbose_name = 'Saldo por Lote'
+        verbose_name_plural = 'Saldos por Lote'
+
+    def save(self, *args, **kwargs):
+        if not self.batch_number:
+            last_batch = ProductBatchStock.objects.order_by('-id').first()
+            if last_batch:
+                new_batch_number = str(int(last_batch.batch_number) + 1).zfill(6)
+            else:
+                new_batch_number = '000001'
+            self.batch_number = new_batch_number
+        super(ProductBatchStock, self).save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.product.name} - Batch: {self.batch_number} - {self.quantity} items"

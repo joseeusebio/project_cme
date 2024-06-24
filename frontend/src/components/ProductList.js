@@ -19,7 +19,8 @@ import {
   Select,
   MenuItem,
   InputLabel,
-  FormControl
+  FormControl,
+  Alert
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 
@@ -46,6 +47,7 @@ const ProductList = () => {
   const [products, setProducts] = useState([]);
   const [open, setOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchProducts();
@@ -64,21 +66,34 @@ const ProductList = () => {
   const handleClose = () => {
     setOpen(false);
     setEditingProduct(null);
+    setError(null);
   };
 
   const handleSave = async () => {
-    if (editingProduct.id) {
-      await api.patch(`products/${editingProduct.sku}/update/`, editingProduct);
-    } else {
-      await api.post('products/create/', editingProduct);
+    try {
+      if (editingProduct.id) {
+        await api.patch(`products/${editingProduct.sku}/update/`, editingProduct);
+      } else {
+        await api.post('products/create/', editingProduct);
+      }
+      fetchProducts();
+      handleClose();
+    } catch (error) {
+      setError('Erro ao salvar o produto.');
     }
-    fetchProducts();
-    handleClose();
   };
 
   const handleDelete = async (sku) => {
-    await api.delete(`products/${sku}/delete/`);
-    fetchProducts();
+    try {
+      await api.delete(`products/${sku}/delete/`);
+      fetchProducts();
+    } catch (error) {
+      if (error.response && error.response.data && error.response.data.error) {
+        setError(error.response.data.error);
+      } else {
+        setError('Erro ao deletar o produto.');
+      }
+    }
   };
 
   const handleChange = (e) => {
@@ -91,6 +106,7 @@ const ProductList = () => {
       <Typography variant="h4" gutterBottom>
         Produtos
       </Typography>
+      {error && <Alert severity="error">{error}</Alert>}
       <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => handleOpen()}>
         Adicionar Produto
       </Button>

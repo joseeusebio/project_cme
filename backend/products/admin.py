@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, ProductTotalStock, ProductBatchStock, ProductBatchStage, ProductBatchStageHistory
+from .models import Product, ProductTotalStock, ProductBatchStock, ProductBatchStage, ProductBatchStageHistory, ProcessBatchStage
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -26,26 +26,24 @@ class ProductBatchStockAdmin(admin.ModelAdmin):
 
 @admin.register(ProductBatchStage)
 class ProductBatchStageAdmin(admin.ModelAdmin):
-    list_display = ('batch_stock', 'stage', 'stage_quantity', 'stage_status', 'stage_date')
-    list_filter = ('stage', 'stage_status', 'stage_date')
-    search_fields = ('batch_stock__product__name', 'batch_stock__product__sku', 'batch_stock__batch_number', 'stage')
-    ordering = ('batch_stock', 'stage_date')
-    readonly_fields = ('stage_date',)
+    list_display = ['stage_number', 'batch_stock', 'stage_status', 'washing_status', 'sterilization_status', 'discard_status', 'distribution_status', 'creation_date', 'completion_date']
+    list_filter = ['stage_status', 'washing_status', 'sterilization_status', 'discard_status', 'distribution_status', 'creation_date', 'completion_date']
+    search_fields = ['stage_number', 'batch_stock__batch_number']
+    readonly_fields = ['creation_date', 'created_by']
 
-@admin.register(ProductBatchStageHistory)
-class ProductBatchStageHistoryAdmin(admin.ModelAdmin):
-    list_display = ('product', 'batch_stock', 'stage', 'quantity', 'status', 'timestamp', 'performed_by')
-    list_filter = ('stage', 'status', 'timestamp', 'performed_by')
-    search_fields = ('product__sku', 'batch_stock__batch_number', 'stage', 'status', 'performed_by')
-    date_hierarchy = 'timestamp'
-    ordering = ('-timestamp',)
-    readonly_fields = ('timestamp',)
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
 
-    def product(self, obj):
-        return obj.product.sku
+@admin.register(ProcessBatchStage)
+class ProcessBatchStageAdmin(admin.ModelAdmin):
+    list_display = ['number_batch_stage', 'stage', 'quantity_processed', 'processed_by', 'process_date']
+    list_filter = ['stage', 'process_date']
+    search_fields = ['number_batch_stage__stage_number', 'processed_by__username']
+    readonly_fields = ['process_date', 'processed_by']
 
-    def batch_stock(self, obj):
-        return obj.batch_stock.batch_number
-
-    product.short_description = 'Product SKU'
-    batch_stock.short_description = 'Batch Number'
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:
+            obj.processed_by = request.user
+        super().save_model(request, obj, form, change)

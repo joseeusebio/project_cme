@@ -1,24 +1,40 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Route, Switch, Link, useHistory } from 'react-router-dom';
 import { Drawer, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, AppBar, Typography, Box, Button, Avatar } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import Home from './Home';
 import ProductList from './ProductList';
 import ProductTotalStockList from './ProductTotalStockList'; 
 import ProductBatchStockList from './ProductBatchStockList'; 
-import axios from 'axios';
+import ProductBatchStageList from './ProductBatchStageList'; 
+import api from '../axiosConfig';
 
 const drawerWidth = 240;
 
 const Dashboard = () => {
   const history = useHistory();
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    fetchUserName();
+  }, []);
+
+  const fetchUserName = async () => {
+    try {
+      const response = await api.get('api/user/');
+      setUserName(response.data.name);
+    } catch (error) {
+      console.error('Failed to fetch user name:', error);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    delete axios.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common['Authorization'];
     history.push('/login');
   };
 
@@ -29,9 +45,16 @@ const Dashboard = () => {
           <Typography variant="h6" noWrap component="div">
             MedTrace Dashboard
           </Typography>
-          <Button color="inherit" onClick={handleLogout}>
-            Logout
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {userName && (
+              <Typography variant="h6" component="span" sx={{ marginRight: 2 }}>
+                Bem-vindo, {userName}
+              </Typography>
+            )}
+            <Button variant="contained" color="secondary" onClick={handleLogout}>
+              Logout
+            </Button>
+          </Box>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -72,9 +95,15 @@ const Dashboard = () => {
             </ListItemButton>
             <ListItemButton component={Link} to="/batch-stock">
               <ListItemIcon>
-                <InventoryIcon />
+                <MedicalServicesIcon />
               </ListItemIcon>
               <ListItemText primary="Recebimento de Materiais" />
+            </ListItemButton>
+            <ListItemButton component={Link} to="/batch-stage">
+              <ListItemIcon>
+                <AssignmentIcon />
+              </ListItemIcon>
+              <ListItemText primary="Ordem de Tratamento" />
             </ListItemButton>
           </List>
         </Box>
@@ -86,6 +115,7 @@ const Dashboard = () => {
           <Route path="/produtos" component={ProductList} />
           <Route path="/total-stock" component={ProductTotalStockList} />
           <Route path="/batch-stock" component={ProductBatchStockList} />
+          <Route path="/batch-stage" component={ProductBatchStageList} />
         </Switch>
       </Box>
     </Box>

@@ -1,4 +1,6 @@
 from django.db import models
+from django.contrib.auth.models import User
+from datetime import datetime, date
 
 class Product(models.Model):
     name = models.CharField(max_length=255)
@@ -44,21 +46,14 @@ class ProductBatchStock(models.Model):
     expiration_date = models.DateField(null=True, blank=True)
     entry_date = models.DateField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
-    condition = models.CharField(
-        max_length=50,
-        choices=[
-            ('new', 'New'),
-            ('used', 'Used'),
-            ('damaged', 'Damaged'),
-        ],
-        default='new'
-    )
+    condition = models.CharField(max_length=50,choices=[('new', 'New'),('used', 'Used'),('damaged', 'Damaged'),],default='new')
     needs_washing = models.BooleanField(default=True)
     needs_sterilization = models.BooleanField(default=True)
+    needs_discard = models.BooleanField(default=False)
 
     class Meta:
-        verbose_name = 'Saldo por Lote'
-        verbose_name_plural = 'Saldos por Lote'
+        verbose_name = 'Recebimento de Material'
+        verbose_name_plural = 'Recebimentos de Material'
 
     def save(self, *args, **kwargs):
         if not self.batch_number:
@@ -74,33 +69,66 @@ class ProductBatchStock(models.Model):
         return f"{self.product.name} - Batch: {self.batch_number} - {self.quantity} items"
 
 class ProductBatchStage(models.Model):
-    batch_stock = models.ForeignKey(ProductBatchStock, on_delete=models.CASCADE, related_name='stages',to_field='batch_number')
-    stage = models.CharField(
-        max_length=50,
-        choices=[
-            ('recebimento', 'Recebimento'),
-            ('lavagem', 'Lavagem'),
-            ('esterilizacao', 'Esterilização'),
-            ('distribuicao', 'Distribuição'),
-        ],
-        default='recebimento'
-    )
-    stage_quantity = models.PositiveIntegerField()
+    batch_stock = models.ForeignKey('ProductBatchStock', on_delete=models.CASCADE, related_name='stages', to_field='batch_number')
+    stage_number = models.CharField(max_length=100, unique=True, blank=True)
     stage_status = models.CharField(
         max_length=20,
         choices=[
+            ('not_started', 'Not Started'),
             ('in_process', 'In Process'),
             ('completed', 'Completed'),
-        ]
+        ],
+        default='not_started'
     )
-    stage_date = models.DateField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    estimated_time_to_complete = models.DurationField(null=True, blank=True)
+    completion_date = models.DateField(null=True, blank=True)
+    creation_date = models.DateField(default=date.today)
+    washing_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('completed', 'Completed'), ('not_needed', 'Not Needed')], default='not_needed')
+    sterilization_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('completed', 'Completed'), ('not_needed', 'Not Needed')], default='not_needed')
+    discard_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('completed', 'Completed'), ('not_needed', 'Not Needed')], default='not_needed')
+    distribution_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('completed', 'Completed'), ('not_needed', 'Not Needed')], default='not_needed')
 
     class Meta:
-        verbose_name = 'Fase Por Lote'
-        verbose_name_plural = 'Fase Por Lote'
+        verbose_name = 'Estágio do Lote'
+        verbose_name_plural = 'Estágios do Lote'
+
+    def save(self, *args, **kwargs):
+        if not self.stage_number:
+            last_stage = ProductBatchStage.objects.order_by('-id').first()
+            if last_stage:
+                new_stage_number = str(int(last_stage.stage_number) + 1).zfill(6)
+            else:
+                new_stage_number = '000001'
+            self.stage_number = new_stage_number
+
+        if self.batch_stock.needs_washing:
+            self.washing_status = 'pending'
+        else:
+            self.washing_status = 'not_needed'
+
+        if self.batch_stock.needs_sterilization:
+            self.sterilization_status = 'pending'
+        else:
+            self.sterilization_status = 'not_needed'
+
+        if self.batch_stock.needs_discard:
+            self.discard_status = 'pending'
+        else:
+            self.discard_status = 'not_needed'
+
+        if not self.batch_stock.needs_washing and not self.batch_stock.needs_sterilization and not self.batch_stock.needs_discard:
+            self.distribution_status = 'pending'
+        else:
+            self.distribution_status = 'not_needed'
+
+        if self.stage_status == 'completed' and not self.completion_date:
+            self.completion_date = date.today()
+
+        super(ProductBatchStage, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.batch_stock.product.name} - Batch: {self.batch_stock.batch_number} - Stage: {self.stage} - {self.stage_quantity} items ({self.stage_status})"
+        return f"{self.stage_number} - {self.get_stage_status_display()}"
 
 class ProductBatchStageHistory(models.Model):
     product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='stage_history', to_field='sku')
@@ -111,11 +139,28 @@ class ProductBatchStageHistory(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     performed_by = models.CharField(max_length=255)
 
-    class Meta:
-        verbose_name = 'Historico do Lote'
-        verbose_name_plural = 'Historico do Lote'
-
     def __str__(self):
         return f"{self.batch_stock.product.name} - Batch: {self.batch_stock.batch_number} - Stage: {self.stage} - {self.quantity} items ({self.status}) at {self.timestamp}"
 
 
+class ProcessBatchStage(models.Model):
+    number_batch_stage = models.ForeignKey(ProductBatchStage, on_delete=models.CASCADE, related_name='processes', to_field='stage_number')
+    stage = models.CharField(
+        max_length=50,
+        choices=[
+            ('lavagem', 'Lavagem'),
+            ('esterilizacao', 'Esterilização'),
+            ('distribuicao', 'Distribuição'),
+            ('descarte', 'Descarte'),
+        ]
+    )
+    quantity_processed = models.PositiveIntegerField()
+    processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    process_date = models.DateField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Processo de Estágio do Lote'
+        verbose_name_plural = 'Processos de Estágios do Lote'
+
+    def __str__(self):
+        return f"{self.number_batch_stage.stage_number} - {self.stage} - {self.quantity_processed}"

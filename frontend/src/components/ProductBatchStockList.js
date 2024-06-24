@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import {
   Box,
   Button,
@@ -43,6 +42,7 @@ const ProductBatchStockList = () => {
     condition: 'new',
     needs_washing: true,
     needs_sterilization: true,
+    needs_discard: false,
   });
 
   useEffect(() => {
@@ -73,11 +73,17 @@ const ProductBatchStockList = () => {
       condition: 'new',
       needs_washing: true,
       needs_sterilization: true,
+      needs_discard: false,
     });
   };
 
   const handleSave = async () => {
-    const payload = { ...newBatchStock };
+    if (newBatchStock.condition === 'used' && !newBatchStock.needs_washing && !newBatchStock.needs_sterilization) {
+      alert("Para produtos usados, pelo menos uma das opções de lavagem ou esterilização deve estar marcada.");
+      return;
+    }
+
+    const payload = { ...newBatchStock, quantity: parseInt(newBatchStock.quantity, 10) };
     if (!payload.expiration_date) {
       delete payload.expiration_date;
     }
@@ -87,7 +93,7 @@ const ProductBatchStockList = () => {
   };
 
   const handleDelete = async (id) => {
-    await api.delete(`batch-stocks/${id}/`);
+    await api.delete(`batch-stocks/${id}/delete/`);
     fetchBatchStocks();
   };
 
@@ -98,6 +104,27 @@ const ProductBatchStockList = () => {
       [name]: type === 'checkbox' ? checked : value,
     });
   };
+
+  useEffect(() => {
+    if (newBatchStock.condition === 'new') {
+      setNewBatchStock((prevState) => ({
+        ...prevState,
+        needs_discard: false,
+      }));
+    } else if (newBatchStock.condition === 'used') {
+      setNewBatchStock((prevState) => ({
+        ...prevState,
+        needs_discard: false,
+      }));
+    } else if (newBatchStock.condition === 'damaged') {
+      setNewBatchStock((prevState) => ({
+        ...prevState,
+        needs_discard: true,
+        needs_washing: false,
+        needs_sterilization: false,
+      }));
+    }
+  }, [newBatchStock.condition]);
 
   return (
     <Box sx={{ padding: 4 }}>
@@ -111,8 +138,8 @@ const ProductBatchStockList = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Produto (SKU)</TableCell>
               <TableCell>Número do Lote</TableCell>
+              <TableCell>Produto (SKU)</TableCell>
               <TableCell>Quantidade</TableCell>
               <TableCell>Data de Expiração</TableCell>
               <TableCell>Data de Entrada</TableCell>
@@ -120,14 +147,15 @@ const ProductBatchStockList = () => {
               <TableCell>Condição</TableCell>
               <TableCell>Necessita Lavagem</TableCell>
               <TableCell>Necessita Esterilização</TableCell>
+              <TableCell>Necessita Descarte</TableCell>
               <TableCell>Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {batchStocks.map((batchStock) => (
               <TableRow key={batchStock.id}>
-                <TableCell>{batchStock.product_sku}</TableCell>
                 <TableCell>{batchStock.batch_number}</TableCell>
+                <TableCell>{batchStock.product_sku}</TableCell>
                 <TableCell>{batchStock.quantity}</TableCell>
                 <TableCell>{batchStock.expiration_date}</TableCell>
                 <TableCell>{batchStock.entry_date}</TableCell>
@@ -135,6 +163,7 @@ const ProductBatchStockList = () => {
                 <TableCell>{batchStock.condition}</TableCell>
                 <TableCell>{batchStock.needs_washing ? 'Sim' : 'Não'}</TableCell>
                 <TableCell>{batchStock.needs_sterilization ? 'Sim' : 'Não'}</TableCell>
+                <TableCell>{batchStock.needs_discard ? 'Sim' : 'Não'}</TableCell>
                 <TableCell>
                   <IconButton color="secondary" onClick={() => handleDelete(batchStock.id)}>
                     <DeleteIcon />
@@ -203,6 +232,7 @@ const ProductBatchStockList = () => {
                 onChange={handleChange}
                 name="needs_washing"
                 color="primary"
+                disabled={newBatchStock.condition === 'damaged'}
               />
             }
             label="Necessita Lavagem"
@@ -214,9 +244,22 @@ const ProductBatchStockList = () => {
                 onChange={handleChange}
                 name="needs_sterilization"
                 color="primary"
+                disabled={newBatchStock.condition === 'damaged'}
               />
             }
             label="Necessita Esterilização"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={newBatchStock.needs_discard}
+                onChange={handleChange}
+                name="needs_discard"
+                color="primary"
+                disabled={newBatchStock.condition !== 'damaged'}
+              />
+            }
+            label="Necessita Descarte"
           />
         </DialogContent>
         <DialogActions>

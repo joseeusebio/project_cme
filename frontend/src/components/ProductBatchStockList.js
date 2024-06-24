@@ -210,7 +210,7 @@ const ProductBatchStockList = () => {
               label="Produto (SKU)"
             >
               {products.map((product) => (
-                <MenuItem key={product.sku} value={product.sku}>
+                <MenuItem key={product.id} value={product.id}>
                   {product.sku} | {product.name}
                 </MenuItem>
               ))}

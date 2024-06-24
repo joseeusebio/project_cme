@@ -102,22 +102,21 @@ def create_products():
     ]
 
     products = [
-        { 'name': 'Bisturi', 'sku': 'SKU001', 'category': 'surgical', 'unit': 'pc' },
-        { 'name': 'Estetoscópio', 'sku': 'SKU002', 'category': 'imaging', 'unit': 'unit' },
-        { 'name': 'Máquina de Anestesia', 'sku': 'SKU003', 'category': 'anesthesia', 'unit': 'unit' },
-        { 'name': 'Cateter Venoso', 'sku': 'SKU004', 'category': 'catheterization', 'unit': 'pk' },
-        { 'name': 'Pinça Odontológica', 'sku': 'SKU005', 'category': 'dental', 'unit': 'pc' },
-        { 'name': 'Recipiente de Amostra', 'sku': 'SKU006', 'category': 'containers', 'unit': 'box' },
-        { 'name': 'Pinça Obstétrica', 'sku': 'SKU007', 'category': 'obstetric', 'unit': 'pc' },
-        { 'name': 'Máscara Cirúrgica', 'sku': 'SKU008', 'category': 'ppe', 'unit': 'box' },
-        { 'name': 'Seringa', 'sku': 'SKU009', 'category': 'surgical', 'unit': 'pk' },
+        { 'name': 'Bisturi', 'category': 'surgical', 'unit': 'pc' },
+        { 'name': 'Estetoscópio', 'category': 'imaging', 'unit': 'unit' },
+        { 'name': 'Máquina de Anestesia', 'category': 'anesthesia', 'unit': 'unit' },
+        { 'name': 'Cateter Venoso', 'category': 'catheterization', 'unit': 'pk' },
+        { 'name': 'Pinça Odontológica', 'category': 'dental', 'unit': 'pc' },
+        { 'name': 'Recipiente de Amostra', 'category': 'containers', 'unit': 'box' },
+        { 'name': 'Pinça Obstétrica', 'category': 'obstetric', 'unit': 'pc' },
+        { 'name': 'Máscara Cirúrgica', 'category': 'ppe', 'unit': 'box' },
+        { 'name': 'Seringa', 'category': 'surgical', 'unit': 'pk' },
     ]
 
     for product in products:
         try:
             Product.objects.create(
                 name=product['name'],
-                sku=product['sku'],
                 category=product['category'],
                 unit=product['unit']
             )

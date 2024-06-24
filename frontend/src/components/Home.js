@@ -36,9 +36,6 @@ const Home = () => {
           <Typography component="h2" variant="h6" sx={{ mb: 2, color: 'secondary.main' }}>
             Central de Material e Esterilização
           </Typography>
-          <Typography variant="body1">
-            Esta é a página inicial do dashboard.
-          </Typography>
         </Box>
       </StyledContainer>
     </BackgroundBox>

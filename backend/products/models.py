@@ -148,7 +148,6 @@ class ProductBatchStageHistory(models.Model):
     def __str__(self):
         return f"{self.batch_stock.product.name} - Batch: {self.batch_stock.batch_number} - Stage: {self.stage} - {self.quantity} items ({self.status}) at {self.timestamp}"
 
-
 class ProcessBatchStage(models.Model):
     number_batch_stage = models.ForeignKey(ProductBatchStage, on_delete=models.CASCADE, related_name='processes', to_field='stage_number')
     stage = models.CharField(max_length=50)

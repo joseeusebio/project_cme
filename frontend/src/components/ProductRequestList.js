@@ -226,7 +226,7 @@ const ProductRequestList = () => {
               label="Produto (Nome)"
             >
               {products.map((product) => (
-                <MenuItem key={product.id} value={product.sku}>
+                <MenuItem key={product.id} value={product.id}>
                   {product.name}
                 </MenuItem>
               ))}

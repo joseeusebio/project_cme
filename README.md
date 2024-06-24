@@ -43,7 +43,7 @@ As variáveis de ambiente necessárias já estão disponíveis no repositório n
 
 1. Execute o script de inicialização de dados para configurar o ambiente:
     ```bash
-    docker exec -it djangoapi python manage.py init_data
+    docker-compose exec backend python manage.py init_data
     ```
 
 ### Credenciais Criadas pelo Script
@@ -94,7 +94,34 @@ A API utiliza autenticação via JWT para as requisições.
 ### Saldo a Distribuir
 - Visualização do saldo de produtos que estão prontos para distribuição.
 
----
+## Regras de Negócio e Validações
+
+1. **Produto**
+   - Não é possível deletar produtos com saldo em estoque.
+   
+2. **Lote de Produto**
+   - Não é possível deletar um lote com ordens de tratamento associadas.
+   
+3. **Ordem de Tratamento**
+   - Não é possível adicionar processos a uma ordem de tratamento concluída.
+   - Não é possível deletar uma ordem de tratamento com processos vinculados.
+   
+4. **Requisição de Materiais**
+   - Saldo insuficiente não permite a distribuição de material.
+   - Não é possível deletar uma requisição de material concluída.
+
+## Signals Utilizados no Backend
+
+Os signals são utilizados para atualizar automaticamente o saldo total de produtos, status das ordens de tratamento e processos, além de manter o saldo de distribuição atualizado.
+
+- **ProductBatchStock**
+  - Atualiza o saldo total de produtos quando um lote é criado ou deletado.
+
+- **ProductBatchStage**
+  - Atualiza o status da ordem de tratamento com base nos processos concluídos.
+
+- **ProcessBatchStage**
+  - Atualiza o status dos processos na ordem de tratamento e ajusta o saldo de distribuição quando um processo de distribuição é criado ou deletado.
 
 ## Contato
 

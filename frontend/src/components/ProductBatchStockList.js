@@ -44,6 +44,7 @@ const ProductBatchStockList = () => {
     needs_sterilization: true,
     needs_discard: false,
   });
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     fetchBatchStocks();
@@ -66,6 +67,7 @@ const ProductBatchStockList = () => {
 
   const handleClose = () => {
     setOpen(false);
+    setErrorMessage('');
     setNewBatchStock({
       product: '',
       quantity: '',
@@ -87,14 +89,31 @@ const ProductBatchStockList = () => {
     if (!payload.expiration_date) {
       delete payload.expiration_date;
     }
-    await api.post('batch-stocks/create/', payload);
-    fetchBatchStocks();
-    handleClose();
+
+    try {
+      await api.post('batch-stocks/create/', payload);
+      fetchBatchStocks();
+      handleClose();
+    } catch (error) {
+      if (error.response && error.response.data) {
+        setErrorMessage(error.response.data.detail || 'Erro ao criar o lote');
+      } else {
+        setErrorMessage('Erro ao criar o lote');
+      }
+    }
   };
 
   const handleDelete = async (id) => {
-    await api.delete(`batch-stocks/${id}/delete/`);
-    fetchBatchStocks();
+    try {
+      await api.delete(`batch-stocks/${id}/delete/`);
+      fetchBatchStocks();
+    } catch (error) {
+      if (error.response && error.response.data) {
+        setErrorMessage(error.response.data.detail || 'Erro ao excluir o lote');
+      } else {
+        setErrorMessage('Erro ao excluir o lote');
+      }
+    }
   };
 
   const handleChange = (e) => {
@@ -134,6 +153,11 @@ const ProductBatchStockList = () => {
       <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={handleOpen}>
         Novo Recebimento
       </Button>
+      {errorMessage && (
+        <Typography color="error" variant="body2">
+          {errorMessage}
+        </Typography>
+      )}
       <TableContainer sx={{ marginTop: 2 }}>
         <Table>
           <TableHead>
@@ -209,6 +233,7 @@ const ProductBatchStockList = () => {
             fullWidth
             value={newBatchStock.expiration_date}
             onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
           />
           <FormControl fullWidth margin="dense">
             <InputLabel>Condição</InputLabel>

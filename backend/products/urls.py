@@ -2,7 +2,8 @@ from django.urls import re_path
 from .views import ProductCreateView, ProductListView, ProductDetailView, ProductUpdateView, ProductDeleteView, ProductTotalStockView
 from .views import ProductBatchStockView, ProductBatchStockCreateView, ProductBatchStockDeleteView, ProductBatchStageCreateView, ProductBatchStageListView
 from .views import ProductBatchStageDeleteView, ProductBatchStageUpdateView, ProcessBatchStageCreateView, ProcessBatchStageListView 
-from .views import ProcessBatchStageDeleteView, UserDetailView
+from .views import ProcessBatchStageDeleteView, UserDetailView, ProcessBatchStageByOrderView, DistributionBalanceListView, ProductRequestListView
+from .views import ProductRequestCreateView, ProductRequestUpdateView, ProductRequestDeleteView, ProductRequestDistributeView
 from django.urls import path
 
 urlpatterns = [
@@ -22,5 +23,12 @@ urlpatterns = [
     re_path(r'^process-batch-stages/create/$', ProcessBatchStageCreateView.as_view(), name='process-batch-stage-create'),
     re_path(r'^process-batch-stages/$', ProcessBatchStageListView.as_view(), name='process-batch-stage-list'),
     re_path(r'^process-batch-stages/(?P<pk>\d+)/delete/$', ProcessBatchStageDeleteView.as_view(), name='process-batch-stage-delete'),
+    re_path(r'^process-batch-stages/order/(?P<order_id>\d+)/$', ProcessBatchStageByOrderView.as_view(), name='process-batch-stages-by-order'),
+    re_path(r'^distribution-balance/$', DistributionBalanceListView.as_view(), name='distribution-balance-list'),
+    re_path(r'^product-requests/$', ProductRequestListView.as_view(), name='product-request-list'),
+    re_path(r'^product-requests/create/$', ProductRequestCreateView.as_view(), name='product-request-create'),
+    re_path(r'^product-requests/(?P<pk>\d+)/update/$', ProductRequestUpdateView.as_view(), name='product-request-update'),
+    re_path(r'^product-requests/(?P<pk>\d+)/delete/$', ProductRequestDeleteView.as_view(), name='product-request-delete'),
+    re_path(r'^product-requests/(?P<pk>\d+)/distribute/$', ProductRequestDistributeView.as_view(), name='product-request-distribute'),
     path('api/user/', UserDetailView.as_view(), name='user-detail')
 ]

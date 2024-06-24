@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from datetime import datetime, date
+from django.core.exceptions import ValidationError
 
 class Product(models.Model):
     name = models.CharField(max_length=255)
@@ -64,6 +65,11 @@ class ProductBatchStock(models.Model):
                 new_batch_number = '000001'
             self.batch_number = new_batch_number
         super(ProductBatchStock, self).save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if ProductBatchStage.objects.filter(batch_stock=self).exists():
+            raise ValidationError("Não é possível deletar um lote com ordens de tratamento associadas.")
+        super(ProductBatchStock, self).delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.product.name} - Batch: {self.batch_number} - {self.quantity} items"
@@ -145,16 +151,7 @@ class ProductBatchStageHistory(models.Model):
 
 class ProcessBatchStage(models.Model):
     number_batch_stage = models.ForeignKey(ProductBatchStage, on_delete=models.CASCADE, related_name='processes', to_field='stage_number')
-    stage = models.CharField(
-        max_length=50,
-        choices=[
-            ('lavagem', 'Lavagem'),
-            ('esterilizacao', 'Esterilização'),
-            ('distribuicao', 'Distribuição'),
-            ('descarte', 'Descarte'),
-        ]
-    )
-    quantity_processed = models.PositiveIntegerField()
+    stage = models.CharField(max_length=50)
     processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     process_date = models.DateField(auto_now_add=True)
 
@@ -163,4 +160,36 @@ class ProcessBatchStage(models.Model):
         verbose_name_plural = 'Processos de Estágios do Lote'
 
     def __str__(self):
-        return f"{self.number_batch_stage.stage_number} - {self.stage} - {self.quantity_processed}"
+        return f"{self.number_batch_stage.stage_number} - {self.stage}"
+    
+class DistributionBalance(models.Model):
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='distribution_balances', to_field='sku')
+    total_quantity = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Saldo de Distribuição'
+        verbose_name_plural = 'Saldos de Distribuição'
+
+    def __str__(self):
+        return f"{self.product.name} - Total a distribuir: {self.total_quantity}"
+    
+
+class ProductRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+    ]
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_requests')
+    quantity = models.PositiveIntegerField()
+    department = models.CharField(max_length=255)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    request_date = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.product.name} - {self.department} - {self.quantity} - {self.status}"
+
+    class Meta:
+        verbose_name = 'Product Request'
+        verbose_name_plural = 'Product Requests'

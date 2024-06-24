@@ -10,6 +10,8 @@ import ProductList from './ProductList';
 import ProductTotalStockList from './ProductTotalStockList'; 
 import ProductBatchStockList from './ProductBatchStockList'; 
 import ProductBatchStageList from './ProductBatchStageList'; 
+import DistributionBalanceList from './DistributionBalanceList';
+import ProductRequestList from './ProductRequestList';  // Adicione esta linha
 import api from '../axiosConfig';
 
 const drawerWidth = 240;
@@ -105,6 +107,18 @@ const Dashboard = () => {
               </ListItemIcon>
               <ListItemText primary="Ordem de Tratamento" />
             </ListItemButton>
+            <ListItemButton component={Link} to="/distribution-balance">
+              <ListItemIcon>
+                <AssignmentIcon />
+              </ListItemIcon>
+              <ListItemText primary="Saldo a Distribuir" />
+            </ListItemButton>
+            <ListItemButton component={Link} to="/product-requests"> 
+              <ListItemIcon>
+                <AssignmentIcon />
+              </ListItemIcon>
+              <ListItemText primary="Requisição de Materiais" /> 
+            </ListItemButton>
           </List>
         </Box>
       </Drawer>
@@ -116,6 +130,8 @@ const Dashboard = () => {
           <Route path="/total-stock" component={ProductTotalStockList} />
           <Route path="/batch-stock" component={ProductBatchStockList} />
           <Route path="/batch-stage" component={ProductBatchStageList} />
+          <Route path="/distribution-balance" component={DistributionBalanceList} />
+          <Route path="/product-requests" component={ProductRequestList} /> 
         </Switch>
       </Box>
     </Box>

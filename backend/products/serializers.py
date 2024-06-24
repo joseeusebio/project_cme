@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Product, ProductTotalStock, ProductBatchStock, ProductBatchStage, ProcessBatchStage
+from .models import Product, ProductTotalStock, ProductBatchStock, ProductBatchStage, ProcessBatchStage, DistributionBalance, ProductRequest
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,6 +64,9 @@ class ProductBatchStockSerializer(serializers.ModelSerializer):
 
 
 class ProductBatchStageSerializer(serializers.ModelSerializer):
+    created_by = serializers.StringRelatedField(read_only=True)
+    batch_stock = serializers.SlugRelatedField(slug_field='batch_number', queryset=ProductBatchStock.objects.all())
+
     class Meta:
         model = ProductBatchStage
         fields = [
@@ -72,18 +75,51 @@ class ProductBatchStageSerializer(serializers.ModelSerializer):
             'washing_status', 'sterilization_status', 'discard_status', 'distribution_status',
             'creation_date'
         ]
-        read_only_fields = ['id', 'stage_number', 'created_by', 'creation_date', 'completion_date']
+        read_only_fields = ['id', 'stage_number', 'created_by', 'creation_date']
+
+    def create(self, validated_data):
+        batch_stock = validated_data.pop('batch_stock')
+        validated_data['batch_stock'] = batch_stock
+        return super().create(validated_data)
 
 class ProcessBatchStageSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+    number_batch_stage = serializers.SlugRelatedField(
+        slug_field='stage_number',
+        queryset=ProductBatchStage.objects.all()
+    )
+
     class Meta:
         model = ProcessBatchStage
         fields = [
-            'id', 'number_batch_stage', 'stage', 'quantity_processed', 
-            'processed_by', 'process_date'
+            'id', 'number_batch_stage', 'stage', 
+            'processed_by', 'process_date', 'user_name'
         ]
         read_only_fields = ['id', 'processed_by', 'process_date']
 
+    def get_user_name(self, obj):
+        if obj.processed_by:
+            return obj.processed_by.get_full_name() or obj.processed_by.username
+        return None
+
+class DistributionBalanceSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_sku = serializers.CharField(source='product.sku', read_only=True)
+
+    class Meta:
+        model = DistributionBalance
+        fields = ['product_name', 'product_sku', 'total_quantity']
+        read_only_fields = ['product_name', 'product_sku', 'total_quantity']
 
 
+class ProductRequestSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    requested_by_name = serializers.CharField(source='requested_by.username', read_only=True)
 
-
+    class Meta:
+        model = ProductRequest
+        fields = [
+            'id', 'product', 'product_name', 'quantity', 'department',
+            'status', 'requested_by', 'requested_by_name', 'request_date'
+        ]
+        read_only_fields = ['id', 'request_date', 'requested_by']

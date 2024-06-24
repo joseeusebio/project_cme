@@ -1,10 +1,11 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_delete
 from django.dispatch import receiver
-from .models import ProductBatchStock, ProductTotalStock, ProductBatchStage
+from .models import ProductBatchStock, ProductTotalStock, ProductBatchStage, ProcessBatchStage, DistributionBalance, ProductRequest
 from django.db import models
 from django.db.models import F
 from django.db import transaction
-from datetime import datetime, date
+from datetime import date
+from django.core.exceptions import ValidationError
 
 @receiver(post_save, sender=ProductBatchStock)
 def update_total_stock(sender, instance, **kwargs):
@@ -58,4 +59,63 @@ def update_stage_status(sender, instance, created, **kwargs):
         else:
             instance.stage_status = 'not_started'
 
-        ProductBatchStage.objects.filter(pk=instance.pk).update(stage_status=instance.stage_status, completion_date=instance.completion_date)
+        ProductBatchStage.objects.filter(pk=instance.pk).update(
+            stage_status=instance.stage_status, 
+            completion_date=instance.completion_date
+        )
+
+@receiver(post_save, sender=ProcessBatchStage)
+def update_product_batch_stage_status_on_create(sender, instance, created, **kwargs):
+    if created:
+        product_batch_stage = instance.number_batch_stage
+        if instance.stage == 'lavagem':
+            ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(washing_status='completed')
+        elif instance.stage == 'esterilizacao':
+            ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(sterilization_status='completed')
+        elif instance.stage == 'descarte':
+            ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(discard_status='completed')
+        elif instance.stage == 'distribuicao':
+            ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(distribution_status='completed')
+
+        product_batch_stage.refresh_from_db()
+
+        if (
+            product_batch_stage.discard_status != 'completed' and
+            product_batch_stage.washing_status == 'completed' and
+            product_batch_stage.sterilization_status == 'completed' and
+            product_batch_stage.distribution_status != 'completed'
+        ):
+            ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(distribution_status='pending')
+
+        product_batch_stage.refresh_from_db()
+        update_stage_status(sender=ProductBatchStage, instance=product_batch_stage, created=False)
+
+@receiver(post_delete, sender=ProcessBatchStage)
+def update_product_batch_stage_status_on_delete(sender, instance, **kwargs):
+    product_batch_stage = instance.number_batch_stage
+    if instance.stage == 'lavagem':
+        ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(washing_status='pending')
+    elif instance.stage == 'esterilizacao':
+        ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(sterilization_status='pending')
+    elif instance.stage == 'descarte':
+        ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(discard_status='pending')
+    elif instance.stage == 'distribuicao':
+        ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(distribution_status='pending')
+
+    if (product_batch_stage.washing_status == 'pending' or
+        product_batch_stage.sterilization_status == 'pending' or
+        product_batch_stage.discard_status == 'pending' or
+        product_batch_stage.distribution_status == 'pending'):
+        ProductBatchStage.objects.filter(pk=product_batch_stage.pk).update(completion_date=None)
+
+    product_batch_stage.refresh_from_db()
+    update_stage_status(sender=ProductBatchStage, instance=product_batch_stage, created=False)
+
+@receiver(post_save, sender=ProcessBatchStage)
+def update_distribution_balance(sender, instance, created, **kwargs):
+    if created and instance.stage == 'distribuicao':
+        product = instance.number_batch_stage.batch_stock.product
+        quantity = instance.number_batch_stage.batch_stock.quantity
+        distribution_balance, created = DistributionBalance.objects.get_or_create(product=product)
+        distribution_balance.total_quantity += quantity
+        distribution_balance.save()

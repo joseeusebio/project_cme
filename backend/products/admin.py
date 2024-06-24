@@ -38,12 +38,5 @@ class ProductBatchStageAdmin(admin.ModelAdmin):
 
 @admin.register(ProcessBatchStage)
 class ProcessBatchStageAdmin(admin.ModelAdmin):
-    list_display = ['number_batch_stage', 'stage', 'quantity_processed', 'processed_by', 'process_date']
-    list_filter = ['stage', 'process_date']
-    search_fields = ['number_batch_stage__stage_number', 'processed_by__username']
-    readonly_fields = ['process_date', 'processed_by']
-
-    def save_model(self, request, obj, form, change):
-        if not obj.pk:
-            obj.processed_by = request.user
-        super().save_model(request, obj, form, change)
+    list_display = ('number_batch_stage', 'stage', 'processed_by', 'process_date')
+    search_fields = ('number_batch_stage__stage_number', 'stage', 'processed_by__username')

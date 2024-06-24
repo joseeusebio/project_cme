@@ -26,7 +26,9 @@ import {
   Visibility as VisibilityIcon,
   CheckCircle as CheckCircleIcon,
   HourglassEmpty as HourglassEmptyIcon,
-  Cancel as CancelIcon
+  NotInterested as NotStartedIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon
 } from '@mui/icons-material';
 import api from '../axiosConfig';
 
@@ -44,11 +46,11 @@ const ProductBatchStageList = () => {
   const [newProcesso, setNewProcesso] = useState({
     number_batch_stage: '',
     stage: '',
-    quantity_done: '',
   });
   const [currentOrdemId, setCurrentOrdemId] = useState(null);
   const [stages, setStages] = useState([]);
   const [totalBatchQuantity, setTotalBatchQuantity] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     fetchOrdens();
@@ -66,7 +68,7 @@ const ProductBatchStageList = () => {
   };
 
   const fetchProcessos = async (ordemId) => {
-    const response = await api.get(`process-batch-stages/?order_id=${ordemId}`);
+    const response = await api.get(`process-batch-stages/order/${ordemId}/`);
     setProcessos(response.data);
   };
 
@@ -76,6 +78,7 @@ const ProductBatchStageList = () => {
 
   const handleCloseOrdemDialog = () => {
     setOpenOrdemDialog(false);
+    setErrorMessage('');
     setNewOrdem({
       batch_stock: '',
       estimated_time_to_complete: '',
@@ -85,13 +88,17 @@ const ProductBatchStageList = () => {
   const handleOpenProcessoDialog = async (ordemId) => {
     setCurrentOrdemId(ordemId);
     const ordem = ordens.find(o => o.id === ordemId);
+    if (ordem.stage_status === 'completed') {
+      setErrorMessage("A ordem de tratamento foi concluída e não pode receber novos processos.");
+      return;
+    }
+    const pendingStages = [];
+    if (ordem.washing_status === 'pending') pendingStages.push({ value: 'lavagem', label: 'Lavagem' });
+    if (ordem.sterilization_status === 'pending') pendingStages.push({ value: 'esterilizacao', label: 'Esterilização' });
+    if (ordem.discard_status === 'pending') pendingStages.push({ value: 'descarte', label: 'Descarte' });
+    if (ordem.distribution_status === 'pending') pendingStages.push({ value: 'distribuicao', label: 'Distribuição' });
+    setStages(pendingStages);
     const batch = batchStocks.find(b => b.batch_number === ordem.batch_stock);
-    const newStages = [];
-    if (batch.needs_washing) newStages.push({ value: 'washing', label: 'Lavagem' });
-    if (batch.needs_sterilization) newStages.push({ value: 'sterilization', label: 'Esterilização' });
-    if (batch.needs_discard) newStages.push({ value: 'discard', label: 'Descarte' });
-    if (newStages.length === 0) newStages.push({ value: 'distribution', label: 'Distribuição' });
-    setStages(newStages);
     setTotalBatchQuantity(batch.quantity);
     setOpenProcessoDialog(true);
   };
@@ -101,7 +108,6 @@ const ProductBatchStageList = () => {
     setNewProcesso({
       number_batch_stage: '',
       stage: '',
-      quantity_done: '',
     });
   };
 
@@ -121,26 +127,45 @@ const ProductBatchStageList = () => {
       ...newOrdem,
       estimated_time_to_complete: convertToTimedelta(newOrdem.estimated_time_to_complete),
     };
-    await api.post('batch-stages/create/', payload);
-    fetchOrdens();
-    handleCloseOrdemDialog();
+
+    try {
+      await api.post('batch-stages/create/', payload);
+      fetchOrdens();
+      handleCloseOrdemDialog();
+    } catch (error) {
+      if (error.response && error.response.data) {
+        setErrorMessage(error.response.data.detail || 'Erro ao criar a ordem de tratamento');
+      } else {
+        setErrorMessage('Erro ao criar a ordem de tratamento');
+      }
+    }
   };
 
   const handleSaveProcesso = async () => {
-    if (newProcesso.quantity_done > totalBatchQuantity) {
-      alert("A quantidade realizada não pode exceder a quantidade total do lote.");
+    const ordem = ordens.find(o => o.id === currentOrdemId);
+    if (!ordem) {
+      alert("Ordem de tratamento não encontrada.");
       return;
     }
+    const userId = localStorage.getItem('user_id');
     const payload = {
       ...newProcesso,
-      number_batch_stage: currentOrdemId,
-      user: localStorage.getItem('user_id'), 
+      number_batch_stage: ordem.stage_number,
+      processed_by: userId,
       process_date: new Date().toISOString(), 
     };
-    await api.post('process-batch-stages/create/', payload);
-    fetchProcessos(currentOrdemId);
-    fetchOrdens();
-    handleCloseProcessoDialog();
+    try {
+      await api.post('process-batch-stages/create/', payload);
+      fetchProcessos(currentOrdemId);
+      fetchOrdens(); 
+      handleCloseProcessoDialog();
+    } catch (error) {
+      if (error.response && error.response.data) {
+        setErrorMessage(error.response.data.detail || 'Erro ao criar o processo');
+      } else {
+        setErrorMessage('Erro ao criar o processo');
+      }
+    }
   };
 
   const handleDeleteOrdem = async (stage_number) => {
@@ -148,13 +173,25 @@ const ProductBatchStageList = () => {
       await api.delete(`batch-stages/${stage_number}/delete/`);
       fetchOrdens();
     } catch (error) {
-      console.error("Error deleting order:", error);
+      if (error.response && error.response.data) {
+        setErrorMessage(error.response.data.detail || 'Erro ao deletar a ordem de tratamento');
+      } else {
+        setErrorMessage('Erro ao deletar a ordem de tratamento');
+      }
     }
   };
 
   const handleDeleteProcesso = async (id) => {
-    await api.delete(`process-batch-stages/${id}/delete/`);
-    fetchProcessos(currentOrdemId);
+    try {
+      await api.delete(`process-batch-stages/${id}/delete/`);
+      fetchProcessos(currentOrdemId);
+    } catch (error) {
+      if (error.response && error.response.data) {
+        setErrorMessage(error.response.data.detail || 'Não é possível excluir processos de uma ordem de tratamento concluída.');
+      } else {
+        setErrorMessage('Erro ao deletar o processo');
+      }
+    }
   };
 
   const handleChangeOrdem = (e) => {
@@ -175,13 +212,32 @@ const ProductBatchStageList = () => {
   const renderStatusIcon = (status) => {
     switch (status) {
       case 'pending':
-        return <HourglassEmptyIcon color="warning" />;
+        return <PendingIcon color="warning" />;
       case 'completed':
         return <CheckCircleIcon color="success" />;
       case 'not_needed':
         return <CancelIcon color="disabled" />;
+      case 'not_started':
+        return <NotStartedIcon color="disabled" />;
       default:
         return null;
+    }
+  };
+
+  const renderStatusText = (status) => {
+    switch (status) {
+      case 'not_started':
+        return 'Não Iniciado';
+      case 'in_process':
+        return 'Em Processo';
+      case 'completed':
+        return 'Concluído';
+      case 'pending':
+        return 'Pendente';
+      case 'not_needed':
+        return 'Não Necessário';
+      default:
+        return status;
     }
   };
 
@@ -199,8 +255,9 @@ const ProductBatchStageList = () => {
             <TableRow>
               <TableCell>Order Number</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell>Tempo Estimado para Completar</TableCell>
+              <TableCell>Tempo Estimado</TableCell>
               <TableCell>Data de Conclusão</TableCell>
+              <TableCell>Lote Associado</TableCell>
               <TableCell>Quantidade Total do Lote</TableCell>
               <TableCell>Lavagem</TableCell>
               <TableCell>Esterilização</TableCell>
@@ -213,19 +270,20 @@ const ProductBatchStageList = () => {
             {ordens.map((ordem) => (
               <TableRow key={ordem.stage_number}>
                 <TableCell>{ordem.stage_number}</TableCell>
-                <TableCell>{ordem.stage_status}</TableCell>
+                <TableCell>{renderStatusText(ordem.stage_status)}</TableCell>
                 <TableCell>{ordem.estimated_time_to_complete}</TableCell>
                 <TableCell>{ordem.completion_date}</TableCell>
+                <TableCell>{ordem.batch_stock}</TableCell>
                 <TableCell>{batchStocks.find(batch => batch.batch_number === ordem.batch_stock)?.quantity}</TableCell>
                 <TableCell>{renderStatusIcon(ordem.washing_status)}</TableCell>
                 <TableCell>{renderStatusIcon(ordem.sterilization_status)}</TableCell>
                 <TableCell>{renderStatusIcon(ordem.discard_status)}</TableCell>
                 <TableCell>{renderStatusIcon(ordem.distribution_status)}</TableCell>
                 <TableCell>
-                  <IconButton color="secondary" onClick={() => handleDeleteOrdem(ordem.stage_number)}>
+                  <IconButton color="secondary" onClick={() => handleDeleteOrdem(ordem.stage_number)} disabled={ordem.stage_status === 'completed'}>
                     <DeleteIcon />
                   </IconButton>
-                  <IconButton color="primary" onClick={() => handleOpenProcessoDialog(ordem.id)}>
+                  <IconButton color="primary" onClick={() => handleOpenProcessoDialog(ordem.id)} disabled={ordem.stage_status === 'completed'}>
                     <AddIcon />
                   </IconButton>
                   <IconButton color="default" onClick={() => handleOpenViewProcessosDialog(ordem.id)}>
@@ -238,46 +296,56 @@ const ProductBatchStageList = () => {
         </Table>
       </TableContainer>
       <Dialog open={openOrdemDialog} onClose={handleCloseOrdemDialog}>
-        <DialogTitle>Nova Ordem de Tratamento</DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Lote</InputLabel>
-            <Select
-              name="batch_stock"
-              value={newOrdem.batch_stock}
-              onChange={handleChangeOrdem}
-              label="Lote"
-            >
-              {batchStocks.map((batch) => (
-                <MenuItem key={batch.batch_number} value={batch.batch_number}>
-                  Lote:{batch.batch_number} - SKU:{batch.product_sku}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            margin="dense"
-            name="estimated_time_to_complete"
-            label="Tempo Estimado para Completar (HH:MM)"
-            type="text"
-            fullWidth
-            value={newOrdem.estimated_time_to_complete}
-            onChange={handleChangeOrdem}
-            placeholder="00:00"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseOrdemDialog} color="primary">
-            Cancelar
-          </Button>
-          <Button onClick={handleSaveOrdem} color="primary">
-            Salvar
-          </Button>
-        </DialogActions>
+          <DialogTitle>Nova Ordem de Tratamento</DialogTitle>
+          <DialogContent>
+              {errorMessage && (
+                  <Typography color="error" variant="body2">
+                      {errorMessage}
+                  </Typography>
+              )}
+              <FormControl fullWidth margin="dense">
+                  <InputLabel>Lote</InputLabel>
+                  <Select
+                      name="batch_stock"
+                      value={newOrdem.batch_stock}
+                      onChange={handleChangeOrdem}
+                      label="Lote"
+                  >
+                      {batchStocks.map((batch) => (
+                          <MenuItem key={batch.batch_number} value={batch.batch_number}>
+                              Lote:{batch.batch_number} - SKU:{batch.product_sku}
+                          </MenuItem>
+                      ))}
+                  </Select>
+              </FormControl>
+              <TextField
+                  margin="dense"
+                  name="estimated_time_to_complete"
+                  label="Tempo Estimado para Completar (HH:MM)"
+                  type="text"
+                  fullWidth
+                  value={newOrdem.estimated_time_to_complete}
+                  onChange={handleChangeOrdem}
+                  placeholder="00:00"
+              />
+          </DialogContent>
+          <DialogActions>
+              <Button onClick={handleCloseOrdemDialog} color="primary">
+                  Cancelar
+              </Button>
+              <Button onClick={handleSaveOrdem} color="primary">
+                  Salvar
+              </Button>
+          </DialogActions>
       </Dialog>
       <Dialog open={openProcessoDialog} onClose={handleCloseProcessoDialog}>
         <DialogTitle>Novo Processo</DialogTitle>
         <DialogContent>
+          {errorMessage && (
+            <Typography color="error" variant="body2">
+              {errorMessage}
+            </Typography>
+          )}
           <FormControl fullWidth margin="dense">
             <InputLabel>Fase</InputLabel>
             <Select
@@ -293,15 +361,6 @@ const ProductBatchStageList = () => {
               ))}
             </Select>
           </FormControl>
-          <TextField
-            margin="dense"
-            name="quantity_done"
-            label={`Quantidade Realizada (Total do Lote: ${totalBatchQuantity})`}
-            type="number"
-            fullWidth
-            value={newProcesso.quantity_done}
-            onChange={handleChangeProcesso}
-          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseProcessoDialog} color="primary">
@@ -315,22 +374,27 @@ const ProductBatchStageList = () => {
       <Dialog open={openViewProcessosDialog} onClose={handleCloseViewProcessosDialog}>
         <DialogTitle>Processos da Ordem</DialogTitle>
         <DialogContent>
+          {errorMessage && (
+            <Typography color="error" variant="body2">
+              {errorMessage}
+            </Typography>
+          )}
           <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Usuário</TableCell>
                   <TableCell>Data do Processo</TableCell>
-                  <TableCell>Quantidade Realizada</TableCell>
+                  <TableCell>Fase</TableCell>
                   <TableCell>Ações</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {processos.map((processo) => (
                   <TableRow key={processo.id}>
-                    <TableCell>{processo.user}</TableCell>
+                    <TableCell>{processo.user_name}</TableCell>
                     <TableCell>{processo.process_date}</TableCell>
-                    <TableCell>{processo.quantity_done}</TableCell>
+                    <TableCell>{processo.stage}</TableCell>
                     <TableCell>
                       <IconButton color="secondary" onClick={() => handleDeleteProcesso(processo.id)}>
                         <DeleteIcon />

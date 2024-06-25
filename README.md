@@ -10,7 +10,7 @@ Siga os passos abaixo para configurar e utilizar o sistema.
 
 1. Clone o repositório:
     ```bash
-    git clone https://github.com/joseeusebio/project_medtrace.git
+    git clone https://github.com/joseeusebio/project_cme.git
     ```
 
 ### Criação de um Virtual Environment

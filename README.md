@@ -43,7 +43,7 @@ As variáveis de ambiente necessárias já estão disponíveis no repositório n
 
 1. Execute o script de inicialização de dados para configurar o ambiente:
     ```bash
-    docker-compose exec backend python manage.py init_data
+    docker-compose exec backend python scripts/init_data.py
     ```
 
 ### Credenciais Criadas pelo Script

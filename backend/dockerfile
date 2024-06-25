@@ -28,15 +28,14 @@ RUN adduser --disabled-password --no-create-home duser && \
     chown -R duser:duser /backend/data/web/static && \
     chown -R duser:duser /backend/data/web/media && \
     chmod -R 755 /backend/data/web/static && \
-    chmod -R 755 /backend/data/web/media
-
-COPY scripts/commands.sh /backend/scripts/commands.sh
-RUN chmod +x /backend/scripts/commands.sh
-
-ENV PATH="/backend/scripts:/venv/bin:$PATH"
-
-EXPOSE 8000
+    chmod -R 755 /backend/data/web/media && \
+    chmod -R +x /backend/scripts
+    
+ENV PATH="/venv/bin:$PATH"
 
 USER duser
 
-ENTRYPOINT ["/backend/scripts/commands.sh"]
+CMD python manage.py collectstatic --noinput && \
+    python manage.py makemigrations --noinput && \
+    python manage.py migrate --noinput && \
+    gunicorn --bind 0.0.0.0:8000 --timeout 120 medtrace.wsgi:application

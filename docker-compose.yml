@@ -1,12 +1,13 @@
 services:
   backend:
+    user: root
     build:
       context: ./backend
       dockerfile: Dockerfile
     volumes:
       - ./backend:/backend
-      - ./backend/data/web/static:/data/web/static/
-      - ./backend/data/web/media:/data/web/media/
+      - ./backend/data/web/static:/backend/data/web/static/
+      - ./backend/data/web/media:/backend/data/web/media/
     ports:
       - "8000:8000"
     env_file:

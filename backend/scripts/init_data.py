@@ -50,15 +50,20 @@ def create_groups():
     add_permissions_to_group(technician_group, technician_permissions)
 
 def create_superuser():
-    try:
-        call_command('createsuperuser', '--noinput', '--username', 'admin', '--email', 'admin@example.com')
-    except Exception as e:
-        print(e)
     from django.contrib.auth import get_user_model
     User = get_user_model()
-    user = User.objects.get(username='admin')
-    user.set_password('159753')
-    user.save()
+    try:
+        user, created = User.objects.get_or_create(
+            username='admin', 
+            defaults={'email': 'admin@example.com', 'is_staff': True, 'is_superuser': True}
+        )
+        if created:
+            user.set_password('159753')
+            user.save()
+        else:
+            print("Superuser already exists.")
+    except Exception as e:
+        print(f"Error creating superuser: {e}")
 
 def create_users():
     from django.contrib.auth import get_user_model
@@ -72,10 +77,15 @@ def create_users():
     ]
 
     for user_info in users_info:
-        user, created = User.objects.get_or_create(username=user_info['username'], defaults={'email': user_info['email']})
+        user, created = User.objects.get_or_create(
+            username=user_info['username'], 
+            defaults={'email': user_info['email']}
+        )
         if created:
             user.set_password(user_info['password'])
             user.save()
+        else:
+            print(f"User {user_info['username']} already exists.")
         group = Group.objects.get(name=user_info['group'])
         user.groups.add(group)
 

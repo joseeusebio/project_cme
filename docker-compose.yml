@@ -9,7 +9,7 @@ services:
       - ./backend/data/web/static:/backend/data/web/static/
       - ./backend/data/web/media:/backend/data/web/media/
     ports:
-      - "8000:8000"
+      - "8005:8005"
     env_file:
       - ./backend/dotenv_files/.env
     depends_on:
@@ -17,7 +17,7 @@ services:
   db:
     image: postgres:13-alpine
     ports:
-      - "5432:5432"
+      - "5435:5435"
     volumes:
       - ./backend/data/postgres/data:/var/lib/postgresql/data/
     env_file:

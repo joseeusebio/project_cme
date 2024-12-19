@@ -71,8 +71,8 @@ A API utiliza autenticação via JWT para as requisições.
 ### Acessar a documentação da API
 
 1. Acesse a documentação da API nos seguintes links após iniciar a aplicação:
-    - [Swagger](http://localhost:8000/swagger/)
-    - [ReDoc](http://localhost:8000/redoc/)
+    - [Swagger](http://localhost:8005/swagger/)
+    - [ReDoc](http://localhost:8005/redoc/)
 
 ## Telas do Frontend
 
